@@ -13,3 +13,25 @@ Android Studio相关设置 &amp; 配置
 
 4. Android N App分屏模式完全解析（上）：https://blog.csdn.net/scott2017/article/details/52062098
 5. Android N App分屏模式完全解析（下）：https://blog.csdn.net/scott2017/article/details/52062158
+
+https://developer.android.google.cn/guide/topics/permissions/overview#signature_permissions
+
+https://developer.android.google.cn/
+http://android-doc.com/
+http://android-studio.org/
+https://blog.csdn.net/
+https://stackoverflow.com/
+http://grepcode.com/
+https://www.oschina.net/
+https://gradle.org/
+http://www.androiddevtools.cn/
+http://maven.apache.org/
+https://www.oracle.com/
+https://www.eclipse.org/
+https://www.dandroid.cn/
+https://www.jianshu.com/
+https://juejin.im/
+http://www.apkbus.com/
+http://www.easyicon.net
+http://www.iconfont.cn
+
