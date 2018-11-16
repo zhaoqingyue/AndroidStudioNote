@@ -1,0 +1,18 @@
+AS运行Run 'app'，提示“nothing to show”
+
+1. 打开Genymotion
+2. Android Studio --> Run 'app'，提示“nothing to show”
+
+解决方案：
+1. 在cmd命令中，查看5037端口是否被占用：netstat -ano|findstr 5037
+2. 查看占用5037端口对应的进程
+3. 杀死占用5037端口对应的进程
+4. 重启AS，执行Run 'app'
+5. 仍然提示“nothing to show”
+6. 查看任务管理器，发现有3个adb进程
+7. 选中一个adb进程，结束进程
+8. 结束进程后，又重启了，反复操作，无法完全结束adb进程
+9. 打开Genymotion的Setting --> adb，设置adb路径（原先是默认Genymotion的路径，现改成sdk路径）
+
+总结：
+1. 出现该现象，是Genymotion的adb和sdk的adb发生冲突
