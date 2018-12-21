@@ -1,0 +1,554 @@
+车载AppStore主要功能总结及实现方式
+
+车载应用市场主要功能包括以下三大模块：
+	网络接口
+	下载apk
+	安装应用 & 卸载应用
+
+其它功能：
+	设置
+	App启动页 + 引导页
+1 网络接口
+	网络请求框架
+	后台接口
+	应用推荐
+	应用分类
+	已安装Apps更新
+	应用市场自升级
+	应用状态（已安装应用是否下架）
+	应用下载次数
+	App启动页
+	意见反馈
+1.1	网络请求框架
+网络框架基本结构：
+ 
+主要分为四个部分：
+1）	Request：发起一次网络请求；
+2）	RequestQueue：用于存放Request的请求队列；
+3）	HttpExecutor：从请求队列中取出Request来进行执行；
+4）	ResponseDispatcher：把执行结果分发到UI线程去执行、刷新UI。
+
+热门流行网络请求框架：
+	Android-Async-Http
+	Volley
+	OkHttp
+	Retrofit
+选择合适的网络请求框架，提高网络请求的稳定性和开发进度。
+
+1.2 后台接口
+1.2.1 应用推荐
+1）	接口定义：运营平台上架适合该设备安装使用但尚未安装的Apps；
+2）	接口描述：获取运营平台推荐的应用列表，并排除终端已安装的Apps；
+3）	推荐维度
+	热门 
+	新上架 
+	下载次数 
+	操作系统
+	设备型号
+	屏幕分辨率
+	语言
+4）	接口请求參数
+	页码
+	每页记录数
+	已安装Apps包名
+5）	接口返回字段
+	应用包名
+	应用图标URL地址
+	应用名称
+	应用描述
+	应用版本名称
+	应用版本号
+	安装包大小
+	安装包URL地址
+	下载次数
+	MD5值
+	静默flag（0：常规；1：静默）
+6）	客户端显示内容
+	应用图标
+	应用名称
+	应用描述
+	应用版本名称
+	安装包大小
+	下载次数
+	下载按钮
+	公共字段
+7）	公共字段
+	错误编码errcode （0：成功；非0：失败）
+	错误信息errmsg
+	系统时间systime
+1.2.2 应用分类
+1）	接口描述：获取App分类列表；
+2）	接口请求参数：无
+3）	接口返回字段
+	分类编码
+	分类名称
+	分类图标
+	分类flag（分类下面是否还有子分类：多级分类）
+1.2.3 分类下应用列表
+1）	接口描述：获取指定分类下的Apps
+2）	接口请求参数
+	分类编码
+	页码
+	每页记录数
+	已安装Apps包名
+3）	接口返回字段
+	分类编码
+	同应用推荐接口
+4）	客户端显示内容：同应用推荐
+1.2.4 已安装Apps更新
+1）	接口描述：检查已安装的Apps是否有新版本；
+2）	更新原则：运营平台对某App发布了多个更新版本时，服务器只返回最新版本；且服务器版本号 > 本地已安装版本号；
+3）	更新维度
+	操作系统
+	设备型号
+	屏幕分辨率
+4）	接口请求参数
+	页码
+	每页记录数
+	已安装应用包名
+	已安装应用版本号（versionCode）
+5）	接口返回字段
+	应用包名
+	应用图标URL地址
+	应用名称
+	更新内容
+	应用版本名称
+	应用版本号
+	安装包大小
+	安装包URL地址
+	下载次数
+	MD5值
+	静默flag（0：常规；1：静默）
+	公共字段
+6）	客户端显示内容
+	应用图标
+	应用名称
+	更新描述
+	应用版本名称
+	安装包大小
+	下载次数
+	更新按钮
+1.2.5 应用自升级
+1）	接口描述：获取版本升级信息；
+2）	接口请求参数
+	应用包名
+	应用版本号
+	设备id（非必须）
+	区域id（非必须）
+	屏幕分辨率（非必须）
+3）	接口返回字段
+	应用包名
+	升级版本号
+	升级描述
+	文件大小
+	apk下载地址
+	MD5值
+	发布时间
+	过期时间
+	强制升级flag（0：否；1：是）
+	静默flag（0：常规；1：静默）
+	公共字段
+
+4）	常规 & 静默
+	常规：检测到新版本时，弹框提示用户，手动点击下载，并显示下载进度；下载完成后，弹系统安装框，用户确认后，开始安装；
+	静默：检测到新版本时，不提示用户，直接下载，下载进度不可见；下载完成后，不弹框，直接开始安装；
+5）	处理流程
+	客户端向服务器发起版本检测的网络请求
+	服务器校验请求参数
+	如果校验失败，直接结束访问
+	参数校验成功，服务器处理是否有升级版本信息
+	如果有新版本，服务器返回最新的升级版本信息给客户端，客户端根据返回字段做相应的处理
+	如果没有新版本，客户端刷新当前版本为最新版本
+6）	客户端具体实现流程
+ 
+其中，忽略更新处理逻辑：
+用户点击“忽略更新”后，把忽略的版本号versionCode存储到SharePreference，每次发现有新版本时，先比较忽略版本号与最新版本号是否一致，如果一致则更新检查结束；不一致，则弹框提示用户。
+取消：一天只弹框提醒一次。
+1.2.6 应用状态
+1）	描述：获取应用状态信息（是否下架）；
+2）	下架原则：第三方App存在重大问题，客户端配合运营平台对该App做下架处理；
+3）	接口请求参数
+	已安装Apps包名
+4）	接口返回字段
+	已下架Apps包名
+	公共字段
+1.2.7 应用下载次数
+1）	接口描述：更新应用下载次数
+2）	接口请求参数
+	应用包名
+	应用版本号
+3）	接口返回字段
+	公共字段
+1.2.8 应用启动页
+1）	接口描述：获取App启动页图片的下载地址
+2）	接口请求参数
+	设备id
+	屏幕分辨率
+3）	接口返回字段
+	启动页图片URL地址
+	启动页版本号
+	停留时间
+	过期时间
+	按钮类型（1：圆形；2：方形；3：无按钮）
+	公共字段
+1.2.9 意见反馈
+1）	接口描述：上传用户的建议或反馈信息
+2）	接口请求参数
+	文本内容
+	图片信息（非必填）
+	联系方式（非必填）
+3）	接口返回字段
+	公共字段
+2 下载apk
+	多任务下载
+	多线程下载
+	断点续传下载
+	下载过程提示
+2.1 多任务下载
+同一时间内，支持多个资源下载。支持下载队列、下载完成队列、进度更新、任务取消& 暂停 & 继续下载。包括网络下载请求、下载任务执行、下载任务调度、UI进度更新、任务状态变化、文件的存储等。
+
+Android app应用场景：
+	应用市场app下载
+	音乐下载
+	视频下载 等等
+
+多任务下载框架：
+ 主要用到的class类：
+	下载管理器DownloadManager
+	任务队列DownloadTaskQueue
+	下载任务DownloadTask
+	观察者模式Observer
+	下载器Downloader
+	下载线程DownloadThread
+
+多任务下载流程如下图所示：
+ 
+2.2 多线程 & 断点续传下载
+	多线程下载：开启多个线程，下载一个文件，提供文件下载的速度；
+	断点续传下载：在上一次下载断开的位置，开始继续下载；
+
+下载过程：
+1）	获取文件长度：获取下载文件的长度，并设置本地文件的长度；
+HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+// 获取下载文件长度
+int fileLen = conn.getContentLength();
+
+RandomAccessFile raf = new RandomAccessFile(file, "rws");
+// 设置本地文件长度
+raf.setLength(mFileLen);
+
+2）	计算文件长度和下载位置：根据文件长度和开启的线程数，计算每个线程下载的文件长度和下载位置；
+ 
+3）	开始下载：使用Http的Range头字段，指定每个线程开始下载的位置；
+HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+conn.setReadTimeout(10000);
+conn.setRequestProperty("Range", "bytes=" + start + "-" + end);
+
+4）	保存已下载文件：使用RandomAccessFile类，指定每个线程从本地文件的什么位置开始写入数据；
+RandomAccessFile raf = new RandomAccessFile(file, "rws");
+raf.seek(start);
+
+具体详细流程如下图所示：
+ 
+2.3 下载提示
+	下载时，如果是4G网络，温馨提示是否继续；
+	下载过程，退出app，提示是否支持后台下载；
+3 安装应用 & 卸载应用
+	常规安装 & 常规卸载
+	静默安装 & 静默卸载
+	系统签名
+3.1 常规安装 & 常规卸载
+	常规安装
+	常规卸载
+3.1.1 常规安装
+调用Android标准安装模块，下载完成后，弹框提示用户，手动确认后，开始安装，安装过程可见；
+ 
+调用代码如下：
+public static void installApk(Context context, String fileName) {
+    Intent intent = new Intent();
+    intent.setAction(Intent.ACTION_VIEW);
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+    Uri data = Uri.parse("file://" + fileName);
+    intent.setDataAndType(data, "application/vnd.android.package-archive");
+    context.startActivity(intent);
+}
+3.1.2 常规卸载
+调用Android标准卸载模块，弹框提示用户，手动确认后，开始卸载。卸载过程可见。
+ 
+调用代码如下：
+public void uninstallApk(Context context, String pkgName) {
+   Uri packageURI = Uri.parse("package:" + pkgName);
+   Intent intent = new Intent(Intent.ACTION_DELETE, packageURI);
+   context.startActivity(intent);
+}
+3.1.3 监听广播
+安装、更新、卸载完成后，Android系统会发送对应的广播，应用市场App可以监听这些广播，然后做相应的逻辑处理。
+	android.intent.action.PACKAGE_ADDED：安装
+	android.intent.action.PACKAGE_REPLACED：更新
+	android.intent.action.PACKAGE_REMOVED：卸载
+
+a.	监听广播代码如下：
+public class PackageReceiver extends BroadcastReceiver {
+
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        if (intent.getAction().equals(Intent.ACTION_PACKAGE_ADDED)) {
+            Uri data = intent.getData();
+            String pkgName = data.getEncodedSchemeSpecificPart();
+            boolean replace = intent.getBooleanExtra(Intent.EXTRA_REPLACING, false);
+            if (!replace) {
+                // 安装完成        
+     	}
+        } else if (intent.getAction().equals(Intent.ACTION_PACKAGE_REPLACED)) {
+            Uri data = intent.getData();
+            String pkgName = data.getEncodedSchemeSpecificPart();
+            // 更新完成
+	// 更新逻辑：先卸载old版本的apk，再安装new版本的apk
+        } else if (intent.getAction().equals(Intent.ACTION_PACKAGE_REMOVED)) {
+            Uri data = intent.getData();
+            String pkgName = data.getEncodedSchemeSpecificPart();
+            boolean replace = intent.getBooleanExtra(Intent.EXTRA_REPLACING, false);
+            if (!replace) {
+                // 卸载完成
+            }
+        }
+    }
+}
+
+b.	在AndroidManifest.xml中注册静态广播：
+<receiver
+    android:name=".receiver.PackageReceiver"
+    android:enabled="true"
+    android:exported="true">
+
+    <intent-filter>
+        <action android:name="android.intent.action.PACKAGE_ADDED" />
+        <action android:name="android.intent.action.PACKAGE_REPLACED" />
+        <action android:name="android.intent.action.PACKAGE_REMOVED" />
+        <data android:scheme="package" />
+    </intent-filter>
+</receiver>
+
+3.2 静默安装 & 静默卸载
+	静默安装：下载完成后，不用弹框提示，直接安装，安装过程不可见；
+	静默卸载：不弹框提示，直接卸载，卸载过程不可见。
+
+静默安装使用场景：
+	无界面的App
+	系统App
+	Widget
+	出现重大bug，必须强制更新
+
+静默安装 & 静默卸载权限
+<!-- 系统安装 -->
+<uses-permission android:name="android.permission.INSTALL_PACKAGES" />
+<!-- 系统卸载 -->
+<uses-permission android:name="android.permission.DELETE_PACKAGES" />
+
+3.2.1 静默安装 & 卸载代码框架
+ 
+3.2.2 具体实现流程
+1）写一个Service，通过startService的方式来添加静默任务；
+添加静默任务：
+a.	添加静默任务——安装代码如下：
+public void slienceInstallApk(Context context, String fileName) {
+   Intent intent = new Intent();
+   intent.setAction(Intent.ACTION_VIEW);
+Uri uri = Uri.parse("file://" + fileName);
+   intent.setDataAndType(uri, "xxx_application/vnd.android.package-archive");
+   context.startService(intent);
+}
+
+b.	添加静默任务——卸载代码如下：
+public void slienceUninstallApk(Context context, String pkgName) {
+   Intent intent = new Intent();
+   intent.setAction(Intent.ACTION_VIEW);
+Uri uri = Uri.parse("package:" + pkgName);
+   intent.setDataAndType(uri, "xxx_application/vnd.android.package-archive");
+   context.startService(intent);
+}
+
+2）在AndroidManifest.xml配置文件中注册
+<service
+    android:name=".service.InstallerService"
+    android:launchMode="singleTask" >
+    <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:scheme="file" />
+        <data android:scheme="package" />
+    // mimeType: 表示可以处理的文件的类型(application/vnd.android.package-archive -- apk文件)
+        <data android:mimeType="xxx_application/vnd.android.package-archive" />
+    </intent-filter>
+</service>
+
+1）	写一个静默任务管理器，将静默任务添加到任务列表
+public InstallerManager(Context context) {
+   mContext = context;
+   mInstallList = new ArrayList<InstallInfo>();
+// 静默安装 & 卸载线程（已开启）,任务队列长度大于0 & 当前任务为null，则处理队列中的第一个任务；否则休眠2s
+   mInstallThread = new InstallThread();
+   mInstallThread.start();
+}
+
+public synchronized void addInstallTask(InstallInfo info) {
+   if (info != null) {
+      mInstallList.add(info);
+   }
+}
+
+2）	写一个安装卸载器，开始静默安装 & 卸载
+public Installer(Context context, InstallInfo info) {
+   mContext = context;
+   mInfo = info;
+       
+   if(mInfo.isInstallFlag()) {
+      PackageInstall();
+   } else {
+      PackageDelete();
+   }
+}
+
+a.	PackageInstall()  &  PackageDelete()实现方式：调用系统隐藏api（普通情况下调用不到）
+b.	\frameworks\base\core\java\android\content\pm目录下PackageManager.java，调用安装、卸载的接口如下：
+// 安装
+public abstract void installPackage(Uri packageURI, IPackageInstallObserver observer,
+                                    int flags, String installerPackageName);
+// 卸载
+public abstract void deletePackage(String packageName, IPackageDeleteObserver observer,
+                                   int flags);
+
+c.	实现 IPackageInstallObserver、IPackageDeleteObserver接口：
+class PackageInstallObserver extends IPackageInstallObserver.Stub {
+
+   public void packageInstalled(String packageName, int returnCode) {
+     // 静默安装完成结果回调 
+   }
+}
+
+class PackageDeleteObserver extends IPackageDeleteObserver.Stub {
+
+   public void packageDeleted(String packageName, int returnCode) {
+      // 静默卸载完成结果回调
+   }
+}
+
+d.	PackageInstall()方法具体代码：
+public void PackageInstall() {
+   int installFlags = 0;
+   PackageManager pm = mContext.getPackageManager();
+   try {
+      mPkgInfo = pm.getPackageArchiveInfo(mInfo.getPath(), PackageManager.GET_PERMISSIONS
+            | PackageManager.GET_UNINSTALLED_PACKAGES);
+      PackageInfo pi = pm.getPackageInfo(mPkgInfo.packageName, PackageManager.GET_UNINSTALLED_PACKAGES);
+      if (pi != null) {
+         installFlags |= PackageManager.INSTALL_REPLACE_EXISTING;
+         installFlags |= PackageManager.INSTALL_ALLOW_DOWNGRADE;
+      }
+   } catch (Exception e) {
+   }
+
+   PackageInstallObserver observer = new PackageInstallObserver();
+   try {
+      pm.installPackage(Uri.parse("file://" + mInfo.getPath()), observer, installFlags, mPkgInfo.packageName);
+   } catch (Exception e) {
+   }
+}
+
+e.	PackageDelete()方法具体代码：
+public void PackageDelete() {
+   try {
+      PackageManager pm = mContext.getPackageManager();
+      mPkgInfo = pm.getPackageInfo(mInfo.getPkgName(), PackageManager.GET_PERMISSIONS);
+
+      PackageDeleteObserver observer = new PackageDeleteObserver();
+      mContext.getPackageManager().deletePackage(mPkgInfo.packageName, observer, true ? PackageManager.DELETE_ALL_USERS : 0);
+   } catch (Exception e) {
+   }
+}
+
+3.3 系统签名
+调用系统隐藏api实现静默安装 & 卸载功能，要将应用市场打系统签名，做成系统应用，然后集成在system/app目录下（普通app在/data/data下）。
+3.3.1 打系统签名apk步骤
+1）	在应用程序AndroidManifest.xml文件根节点加入sharedUserId属性；
+android:sharedUserId="android.uid.system"
+sharedUserId属性原理：拥有同一个UserId的多个apk可以配置成运行在同一个进程中。把UserId配置为android.uid.system，则让程序运行在系统进程中。
+2）	使用Eclipse或Android Studio编译未签名的apk文件，该apk文件是不可用；
+3）	使用目标系统的platform密钥来给apk文件签名。
+a.	找到密钥文件：Android源码目录"build/target/product/security"下的platform.pk8和platform.x509.pem两个文件；
+b.	用Android提供的Signapk工具来签名：Android源代码目录"build/tools/signapk"下的signapk.jar；
+c.	使用命令：java -jar signapk platform.x509.pem platform.pk8 input.apk output.apk
+3.3.2 编写脚本文件
+1）新建sign.txt文件（文件名任意命名，通俗易懂即可）；
+2）将java -jar signapk.jar platform.x509.pem platform.pk8 input.apk ./bin/output.apk拷贝到sign.txt文件中；
+3）将sign.txt文件重命名为sign.bat。
+3.3.3 打系统签名apk详细流程
+ 
+1）	将密钥文件platform.pk8和platform.x509.pem拷贝到新建的文件夹，比如：signtool；
+2）	将签名工具signapk.jar拷贝到signtool目录下；
+3）	将编译出的未签名apk文件拷贝到signtool目录下；
+4）	将脚本文件sign.bat拷贝到signtool目录下
+5）	在signtool目录下新建bin文件夹，用来存放生成的系统签名apk；
+6）	双击sign.bat，执行脚本文件。
+4 设置
+	版本检测
+	清除缓存
+	意见反馈
+	关于
+4.1 版本检测
+提供版本检测更新的入口，如果检测到新版本，用户一直未更新，用小红点提醒，具体实现见App自升级流程。
+4.2 清除缓存
+清除App使用过程中的一些缓存文件，分内部缓存和外部缓存。
+4.21 清除应用内部缓
+缓存路径：/data/data/package/cache
+获取方法：Context.getCacheDir()
+4.22 清除应用外部缓存
+如果sd卡存在，则：
+缓存路径：/storage/emulated/0/Android/data/package/cache
+获取方法：Context.getExternalCacheDir()
+4.3 意见反馈
+用户可以将自己的建议、问题、想法等信息反馈到运营平台，具体实现见意见反馈接口。
+4.4  关于
+	版本信息：显示App的应用图标、应用名称、当前版本名称；
+	版权信息：显示该App使用的开源lib；
+	公司官网：通过H5显示公司官网；
+	服务协议：法律免责条款；
+5 App闪屏 & 启动页 & 引导页
+	闪屏
+	启动页
+	引导页
+
+App启动流程：
+ 
+
+说明：闪屏这个过程不是必须的，有的App有闪屏过程（比如：腾讯体育App），有的没有闪屏过程（比如：招商银行App），取决于App的启动速度。
+5.1 闪屏
+1）	描述：闪屏是App每次冷启动过程中展示给用户的过渡页面（掩盖启动慢的事实）；
+	冷启动：App尚未运行，系统创建进程并初始化App（时间稍长，期间可能会出现白屏或黑屏）
+	热启动：App已经运行，但是在后台被挂起，从后台恢复App
+2）	实现：展示一张背景图，无法交互，不能动态修改；
+5.2 启动页
+1）	描述：启动页是App的第一个页面（如果没有闪屏页），是为了缓解用户等待加载App数据内容出现的一个页面，也可以展示产品信息、活动内容等，还可以动态修改（由于下载时间不定，通常缓存后在下次启动时启用）；
+2）	作用：在启动页加载过程中，客户端可以在后台执行很多操作
+	权限检查
+	登录状态（如果有账号）
+	版本更新检测
+	拉取主页数据
+3）	实现：
+	一张图片 + 倒计时（一般3秒）+ “跳过”按钮
+	点击“跳过”按钮，倒计时取消，同时启动页消失，并实现页面跳转
+	可以交互，可以动态修改（也可以是固定的图片）
+5.3 引导页
+1）	描述：引导页是用户第一次安装或更新后第一次启动，展示的数张图片页面（通常3-5张），之后不再出现；如果App清除用户数据，再次打开App后，也可以看到引导页（具体看App实现逻辑）；
+2）	作用：
+	操作指引
+	功能介绍
+	使用场景
+	迭代信息
+3）	实现：
+	图片 + 小圆点 & 图片数量 = 小圆点数量
+	左右滑动切换页面
+	小圆点位置跟随图片位置而变化 & 小圆点位置 = 图片位置
+	引导页最后一张图片上有“进入应用”按钮
+	点击“进入应用”按钮，实现界面跳转（主页面或登录页面）
+
