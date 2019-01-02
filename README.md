@@ -35,3 +35,11 @@ http://www.apkbus.com/
 http://www.easyicon.net
 http://www.iconfont.cn
 
+
+Android查询本地文件（最快速度）
+https://blog.csdn.net/qq_30776389/article/details/75044978
+
+MIME类型
+http://www.cnblogs.com/hibraincol/archive/2010/09/16/1828502.html
+
+
